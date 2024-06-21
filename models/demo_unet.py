@@ -5,7 +5,6 @@ import torch.nn as nn
 from torch.nn import init
 from itertools import repeat
 import torch.nn.functional as F
-# from torch._six import container_abcs
 import collections.abc as container_abcs
 from torch.nn.modules.module import Module
 from .layers import unetConv2, unetUp
@@ -15,7 +14,7 @@ import models
 
 def _ntuple(n):
     def parse(x):
-        if isinstance(x, container_abcs.Iterable):  # isinstance():判断两个类型是否相同
+        if isinstance(x, container_abcs.Iterable):  
             return x
         return tuple(repeat(x, n))
     return parse
@@ -84,11 +83,9 @@ class Conv(Module):
         self.w = nn.Parameter(torch.Tensor(oc, ic, 9))
         self.padding = _pair(1)
         self.init = nn.Parameter(torch.zeros([ic, 9, 9], dtype=torch.float32))
-        init.kaiming_uniform_(self.w, a=math.sqrt(5))   # Kaiming均匀初始化
+        init.kaiming_uniform_(self.w, a=math.sqrt(5))  
 
     def forward(self, inputs):
-        # torch.eye(n):生成对角线全1，其余部分全0的二维数组
-        # torch.einsum用于矩阵乘法
         init = self.init + torch.eye(9, dtype=torch.float32).unsqueeze(0).repeat((self.ic, 1, 1)).to(self.config.device)
         weight = torch.reshape(torch.einsum('abc, dac->dab', init, self.w), (self.oc, self.ic, 3, 3))
         outputs = F.conv2d(inputs, weight, None, 1, self.padding)
@@ -104,10 +101,10 @@ class pre_layer(nn.Module):
 
     def forward(self, x_recon):
 
-        x_recon = torch.transpose(x_recon, 0, 1).reshape([-1, 1, 32, 32])   # [9,1024]->[9,1,32,32]
+        x_recon = torch.transpose(x_recon, 0, 1).reshape([-1, 1, 32, 32])  
         x_output = self.unet(x_recon)
 
-        x_output = torch.transpose(x_output.reshape(-1, 1024), 0, 1)    # [1024,9]
+        x_output = torch.transpose(x_output.reshape(-1, 1024), 0, 1)   
         return x_output
 
 
@@ -135,7 +132,7 @@ class HybridNet(nn.Module):
         self.config = config
         self.phi_size = 32
         points = self.phi_size ** 2
-        phi_init = np.random.normal(0.0, (1 / points) ** 0.5, size=(int(config.ratio * points), points))       # 从正太/高斯分布中随机抽取样本
+        phi_init = np.random.normal(0.0, (1 / points) ** 0.5, size=(int(config.ratio * points), points))      
         self.phi = nn.Parameter(torch.from_numpy(phi_init).float(), requires_grad=False)
         self.Q = nn.Parameter(torch.from_numpy(np.transpose(phi_init)).float(), requires_grad=False)
 
@@ -159,18 +156,18 @@ class HybridNet(nn.Module):
 
         for i in range(self.num_layers):
             self.weights.append(nn.Parameter(torch.tensor(1.), requires_grad=False))
-            self.register_parameter("eta_" + str(i + 1), nn.Parameter(torch.tensor(0.1), requires_grad=False))  # todo
+            self.register_parameter("eta_" + str(i + 1), nn.Parameter(torch.tensor(0.1), requires_grad=False))  
             self.etas.append(eval("self.eta_" + str(i + 1)))
-            self.register_parameter("alpha_" + str(i + 1), nn.Parameter(torch.tensor(alp), requires_grad=False))  # todo
+            self.register_parameter("alpha_" + str(i + 1), nn.Parameter(torch.tensor(alp), requires_grad=False)) 
             self.alphas.append(eval("self.alpha_" + str(i + 1)))
-            self.register_parameter("beta_" + str(i + 1), nn.Parameter(torch.tensor(bet), requires_grad=False))  # todo
+            self.register_parameter("beta_" + str(i + 1), nn.Parameter(torch.tensor(bet), requires_grad=False))
             self.betas.append(eval("self.beta_" + str(i + 1)))
 
     def forward(self, inputs):
-        batch_size = inputs.size(0)     # inputs [1,1,96,96]
-        # inputs = torch.unsqueeze(inputs,0)  # complex
+        batch_size = inputs.size(0)     
+        # inputs = torch.unsqueeze(inputs,0)  
         y = self.sampling(inputs, self.phi_size)
-        recon = self.recon(y, self.phi_size, batch_size)    # inputs [1,1,96,96]
+        recon = self.recon(y, self.phi_size, batch_size)    
         return recon
 
     def sampling(self, inputs, init_block):
@@ -184,7 +181,7 @@ class HybridNet(nn.Module):
     def recon(self, y, init_block, batch_size):
         idx = int(self.config.block_size / init_block)
 
-        recon = torch.matmul(self.Q, y)     #[1024,9]
+        recon = torch.matmul(self.Q, y)   
         xp = recon
         x = recon
         for i in range(self.num_layers):
@@ -192,12 +189,12 @@ class HybridNet(nn.Module):
                 x = (1-self.alphas[i]) * xp + (self.alphas[i]-self.betas[i]) * recon
                 xp = recon
             recon = recon - self.weights[i] * torch.mm(torch.transpose(self.phi, 0, 1), (torch.mm(self.phi, recon) - y))
-            recon = recon - self.pre_block[i](recon)  # [1024,9]
-            recon = torch.reshape(torch.transpose(recon, 0, 1), [-1, 1, init_block, init_block])  # [9,1,32,32]
+            recon = recon - self.pre_block[i](recon)  
+            recon = torch.reshape(torch.transpose(recon, 0, 1), [-1, 1, init_block, init_block])  
             recon = torch.mul(torch.sign(recon), F.relu(torch.abs(recon) - self.threshold))
             recon = recon - self.post_block[i](recon)
             recon = torch.reshape(recon, [-1, init_block ** 2])
-            recon = torch.transpose(recon, 0, 1)  # [1024,9]
+            recon = torch.transpose(recon, 0, 1) 
 
             if i != 0:
                 recon = x + self.betas[i] * recon
