@@ -100,7 +100,7 @@ def main():
     config.check()
     set_seed(22)
     print("Data loading...")
-    torch.cuda.empty_cache()        # 释放缓存分配
+    torch.cuda.empty_cache()      
     dataset_train = utils.train_loader(batch_size=opt.bs)
     net = models.HybridNet(config).to(config.device)
     net.train()
@@ -128,7 +128,7 @@ def main():
 
     over_all_time = time.time()
     for epoch in range(start_epoch, 200):
-        print("Lr: op {}; sc {}.".format(optimizer.param_groups[0]['lr'], scheduler.get_last_lr()))     # 当前的学习率
+        print("Lr: op {}; sc {}.".format(optimizer.param_groups[0]['lr'], scheduler.get_last_lr()))  
 
         epoch_loss = 0
         dic = {"rate": config.ratio, "epoch": epoch,
