@@ -10,13 +10,10 @@ class GetConfig:
         self.block_size = 96
         self.batch_size = 64
         self.device = torch.device(device if torch.cuda.is_available() else "cpu")
-        # self.name = 'unet_filter16'
         self.name = 'unet'
 
         # Paths
-        self.results = "./new_results_forAblation/LTwIST"
-        # self.results = "./results"
-        # self.results = "./new_results"
+        self.results = "./save_models"
         self.log = os.path.join(self.results, str(int(self.ratio * 100))+self.name, "log.txt")
 
         self.folder = os.path.join(self.results, str(int(self.ratio * 100))+self.name, "models")
@@ -24,13 +21,13 @@ class GetConfig:
         self.optimizer = os.path.join(self.folder, "optimizer.pth")
         self.info = os.path.join(self.folder, "info.pth")
 
-        self.train_path = "./dataset/train"
-        if not os.path.isdir(self.train_path):
-            os.mkdir(self.train_path)
-        self.val_path = "./dataset/val"
-        if not os.path.isdir(self.val_path):
-            os.mkdir(self.val_path)
-        self.test_path = "./dataset/test"
+        # self.train_path = "./dataset/train"
+        # if not os.path.isdir(self.train_path):
+        #     os.mkdir(self.train_path)
+        # self.val_path = "./dataset/val"
+        # if not os.path.isdir(self.val_path):
+        #     os.mkdir(self.val_path)
+        # self.test_path = "./dataset/test"
 
     def check(self):
         if not os.path.isdir(self.results):
