@@ -19,21 +19,11 @@ class DataAugment:
         return np.array([[1, 0, translation[0]], [0, 1, translation[1]], [0, 0, 1]])
 
     def adjust_transform_for_image(self, img, trans_matrix):
-        transform_matrix = copy.deepcopy(trans_matrix)  #深拷贝，会拷贝对象及其子对象，哪怕以后对其有改动，也不会影响其第一次的拷贝
-        # height, width, channels = img.shape
-        # print(img.shape)
+        transform_matrix = copy.deepcopy(trans_matrix) 
         height, width = img.shape
         transform_matrix[0:2, 2] *= [width, height]
-
-        # print("loader:trans_matrix:{}".format(trans_matrix.shape))
-        # print("loader:transform_matrix1:{}".format(transform_matrix.shape))
-
         center = np.array((0.5 * width, 0.5 * height))
         transform_matrix = np.linalg.multi_dot([self.basic_matrix(center), transform_matrix, self.basic_matrix(-center)])
-
-        # print("loader:center:{}".format(center))
-        # print("loader:basic_matrix:{}".format(self.basic_matrix(center).shape))
-        # print("loader:transform_matrix2:{}".format(transform_matrix.shape))
 
         return transform_matrix
 
@@ -41,13 +31,8 @@ class DataAugment:
     def apply(self, img, trans_matrix):
         tmp_matrix = self.adjust_transform_for_image(img, trans_matrix)
 
-        # print("trans_matrix:{}".format(trans_matrix.shape))
-        # print("tmp_matrix:{}".format(tmp_matrix.shape))
-
-        # cv2.warpAffine():仿射变函数，实现图像旋转
         out_img = cv2.warpAffine(img, tmp_matrix[:2, :], dsize=(img.shape[1], img.shape[0]),
                                  flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT, borderValue=0,)
-        # print("out_img:{}".format(out_img.shape))
 
         return out_img
 
@@ -56,14 +41,12 @@ class DataAugment:
         max = np.array(max)
         return np.random.uniform(min, max)
 
-    # 图像旋转
     def random_rotate(self, img, factor):
         angle = np.random.uniform(factor[0], factor[1])
         rotate_matrix = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
         out_img = self.apply(img, rotate_matrix)
         return rotate_matrix, out_img
 
-    # 图像扩大
     def random_scale(self, img, min_translation, max_translation):
         factor = self.random_vector(min_translation, max_translation)
         scale_matrix = np.array([[factor[0], 0, 0], [0, factor[1], 0], [0, 0, 1]])
@@ -79,13 +62,11 @@ class TrainDataPackage:
         self.root = root
         self.num = 200
 
-        # torchvision.transforms.Compose():串联多个图片变换的操作
         self.transform = transform or torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
-            torchvision.transforms.RandomVerticalFlip(),        # 随机垂直翻转
-            torchvision.transforms.RandomHorizontalFlip()])      # 随机水平翻转
-            # torchvision.transforms.Grayscale(num_output_channels=1)])   #将图像转为灰度图
-
+            torchvision.transforms.RandomVerticalFlip(),       
+            torchvision.transforms.RandomHorizontalFlip()])     
+        
         if not (os.path.exists(os.path.join(self.root, self.training_file))):
             print("No packaged dataset file (*.pt) in dataset/, Now generating...")
             self.generate()
@@ -103,9 +84,6 @@ class TrainDataPackage:
     def generate(self):
         paths = [
             os.path.join(self.root, "coco/")
-            # os.path.join(self.root, "BSD500/train/train"),
-            # os.path.join(self.root, "BSD500/test/"),
-            # os.path.join(self.root, "BSD500/val/"),
         ]
         patches_list = []
 
@@ -118,14 +96,9 @@ class TrainDataPackage:
                         if file[-4:] == ".jpg" or file[-4:] == ".png":
                             temp = os.path.join(path, file)
                             print("=> Processing " + temp)
-                            # image = Image.open(temp).convert('L')
-                            # patches = self.random_patch(image, self.num)
-                            # patches_list.extend(patches)
-                            # 用亮度分量打包处理
                             Img = cv2.imread(temp)
                             image_yuv = cv2.cvtColor(Img, cv2.COLOR_BGR2YCrCb)
                             image_y = image_yuv[:,:,0]
-                            # image_y = Image.fromarray(np.uint8(image_y))
                             patches = self.random_patch(image_y, self.num)
                             patches_list.extend(patches)
         print("Total patches: {}".format(patches_list.__len__()))
@@ -137,11 +110,11 @@ class TrainDataPackage:
 
     def random_patch(self, image, num):
         size = 96
-        image = np.array(image, dtype=np.float32) / 255     # 图像像素归一化
+        image = np.array(image, dtype=np.float32) / 255    
         h, w = image.shape[0], image.shape[1]
         patches = []
         for n in range(num):
-            max_h = random.randint(0, h - size)     # 随机生成0到h-size的一个整数
+            max_h = random.randint(0, h - size)    
             max_w = random.randint(0, w - size)
             patch = image[max_h:max_h + size, max_w:max_w + size]
 
